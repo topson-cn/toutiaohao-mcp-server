@@ -57,3 +57,45 @@ func TestCookieDeleteFile(t *testing.T) {
 		t.Errorf("Cookie file should be deleted, but still exists")
 	}
 }
+
+func TestCookieSaveUsesOwnerOnlyPermissions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "private", "cookies.json")
+	store := NewFileCookieStore(path)
+	if err := store.SaveCookies([]byte(`[{"name":"sid","value":"secret"}]`)); err != nil {
+		t.Fatalf("SaveCookies failed: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat failed: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0600 {
+		t.Fatalf("cookie mode = %#o, want 0600", got)
+	}
+
+	dirInfo, err := os.Stat(filepath.Dir(path))
+	if err != nil {
+		t.Fatalf("directory Stat failed: %v", err)
+	}
+	if got := dirInfo.Mode().Perm(); got != 0700 {
+		t.Fatalf("cookie directory mode = %#o, want 0700", got)
+	}
+}
+
+func TestCookieSaveTightensExistingFilePermissions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cookies.json")
+	if err := os.WriteFile(path, []byte("old"), 0644); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+	store := NewFileCookieStore(path)
+	if err := store.SaveCookies([]byte("new")); err != nil {
+		t.Fatalf("SaveCookies failed: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0600 {
+		t.Fatalf("cookie mode = %#o, want 0600", got)
+	}
+}

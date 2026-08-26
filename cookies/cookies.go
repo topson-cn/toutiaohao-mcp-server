@@ -6,7 +6,6 @@ import (
 	"runtime"
 )
 
-
 // Cookier Cookie 持久化接口
 type Cookier interface {
 	LoadCookies() ([]byte, error)
@@ -40,10 +39,13 @@ func (s *FileCookieStore) LoadCookies() ([]byte, error) {
 // SaveCookies 保存 Cookie 到文件
 func (s *FileCookieStore) SaveCookies(data []byte) error {
 	dir := filepath.Dir(s.filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
-	return os.WriteFile(s.filePath, data, 0644)
+	if err := os.WriteFile(s.filePath, data, 0600); err != nil {
+		return err
+	}
+	return os.Chmod(s.filePath, 0600)
 }
 
 // DeleteCookies 删除 Cookie 文件
