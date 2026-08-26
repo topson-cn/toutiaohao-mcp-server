@@ -99,6 +99,45 @@ func (s *AppServer) handleSaveMicroPostDraft(ctx context.Context, args map[strin
 	return NewTextResult(`{"success": true, "message": "Draft saved"}`)
 }
 
+func buildDraftArticleOptions(args map[string]interface{}) *toutiaohao.ArticleOptions {
+	opts := &toutiaohao.ArticleOptions{SaveAsDraft: true}
+	if imgs, ok := args["images"].([]string); ok {
+		opts.Images = imgs
+	}
+	if tags, ok := args["tags"].([]string); ok {
+		opts.Tags = tags
+	}
+	if category, ok := args["category"].(string); ok {
+		opts.Category = category
+	}
+	if cover, ok := args["cover_image"].(string); ok {
+		opts.CoverImage = cover
+	}
+	if original, ok := args["original"].(bool); ok {
+		opts.Original = original
+	}
+	if fiction, ok := args["fiction"].(bool); ok {
+		opts.Fiction = fiction
+	}
+	return opts
+}
+
+// handleSaveArticleDraft 只保存图文草稿，并由服务层回查草稿箱确认。
+func (s *AppServer) handleSaveArticleDraft(ctx context.Context, args map[string]interface{}) *MCPToolResult {
+	title, _ := args["title"].(string)
+	content, _ := args["content"].(string)
+	opts := buildDraftArticleOptions(args)
+	if err := toutiaohao.ValidateArticle(title, content, opts); err != nil {
+		return NewErrorResult(err.Error())
+	}
+	result, err := s.toutiaoService.PublishArticle(ctx, title, content, opts)
+	if err != nil {
+		return NewErrorResult(err.Error())
+	}
+	data, _ := json.Marshal(result)
+	return NewTextResult(string(data))
+}
+
 // handlePublishArticle 处理文章发布
 func (s *AppServer) handlePublishArticle(ctx context.Context, args map[string]interface{}) *MCPToolResult {
 	title, _ := args["title"].(string)
