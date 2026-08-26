@@ -10,6 +10,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func startStdioServer(ctx context.Context, run func(context.Context) error) error {
+	return run(ctx)
+}
+
 func main() {
 	port := flag.String("port", "8080", "HTTP server port")
 	loginMode := flag.Bool("login", false, "Start interactive QR code login to save cookies and then exit")
@@ -40,10 +44,9 @@ func main() {
 		appServer := NewAppServer(service)
 		server := InitMCPServer(appServer)
 
-		// 并发启动后台 HTTP 服务
-		appServer.StartBackground(*port)
-
-		if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil {
+		if err := startStdioServer(ctx, func(runCtx context.Context) error {
+			return server.Run(runCtx, &mcp.StdioTransport{})
+		}); err != nil {
 			log.Fatalf("Stdio server error: %v", err)
 		}
 		return

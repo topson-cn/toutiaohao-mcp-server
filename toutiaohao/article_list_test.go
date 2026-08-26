@@ -46,6 +46,31 @@ func TestArticleListPageValidation(t *testing.T) {
 	}
 }
 
+func TestFilterArticlesByStatusExcludesDraftFromPublished(t *testing.T) {
+	articles := []ArticleItem{
+		{ArticleID: "draft-id", Title: "草稿", Status: 1},
+		{ArticleID: "published-id", Title: "已发布", Status: 3},
+	}
+	filtered := filterArticlesByStatus(articles, "published")
+	if len(filtered) != 1 {
+		t.Fatalf("len(filtered) = %d, want 1: %+v", len(filtered), filtered)
+	}
+	if filtered[0].ArticleID != "published-id" {
+		t.Fatalf("filtered = %+v", filtered)
+	}
+}
+
+func TestFilterArticlesByStatusKeepsDraftForDraftFilter(t *testing.T) {
+	articles := []ArticleItem{
+		{ArticleID: "draft-id", Title: "草稿", Status: "draft"},
+		{ArticleID: "published-id", Title: "已发布", Status: "published"},
+	}
+	filtered := filterArticlesByStatus(articles, "draft")
+	if len(filtered) != 1 || filtered[0].ArticleID != "draft-id" {
+		t.Fatalf("filtered = %+v", filtered)
+	}
+}
+
 func TestDeleteArticleValidation_EmptyID(t *testing.T) {
 	err := ValidateDeleteArticle("")
 	if err == nil {

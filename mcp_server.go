@@ -42,29 +42,43 @@ type DeleteCookiesArgs struct{}
 
 // PublishArticleArgs 文章发布参数
 type PublishArticleArgs struct {
-	Title       string      `json:"title" jsonschema_description:"文章标题（最多100字）"`
-	Content     string      `json:"content" jsonschema_description:"文章正文内容。支持：1. 纯文本内容。2. 包含插图的内容：使用 Markdown 格式 of 图片标签 '![图片描述](本地绝对路径)' 插入本地图片。系统会自动提取图片，按顺序逐个上传并在对应的段落位置插入。例如：'第一段内容。\\n\\n![插图](/path/to/img.png)\\n\\n第二段内容。'"`
-	Images      []string    `json:"images,omitempty" jsonschema_description:"封面图片路径列表；图文文章中若明确传入 images，将优先作为封面图使用（1 张为单图，3 张及以上为三图）。正文插图请写在 content 的 Markdown 图片标签中"`
-	Tags        []string    `json:"tags,omitempty" jsonschema_description:"标签列表（如活动话题：移动云智能新空间）"`
-	Category    string      `json:"category,omitempty" jsonschema_description:"文章分类（如科技）"`
-	CoverImage  string      `json:"cover_image,omitempty" jsonschema_description:"封面图片路径"`
-	Original    bool        `json:"original,omitempty" jsonschema_description:"是否声明原创"`
-	Fiction     bool        `json:"fiction,omitempty" jsonschema_description:"是否声明作品取材网络、虚构演绎以防范版权/姓名权争议"`
-	PublishTime interface{} `json:"publish_time,omitempty" jsonschema_description:"定时发布时间（支持 Unix 时间戳或 YYYY-MM-DD HH:mm 格式的字符串）"`
-	SaveAsDraft bool        `json:"save_as_draft,omitempty" jsonschema_description:"是否仅保存为草稿而不直接发布"`
+	Title          string      `json:"title" jsonschema_description:"文章标题（最多100字）"`
+	Content        string      `json:"content" jsonschema_description:"文章正文内容。支持：1. 纯文本内容。2. 包含插图的内容：使用 Markdown 格式 of 图片标签 '![图片描述](本地绝对路径)' 插入本地图片。系统会自动提取图片，按顺序逐个上传并在对应的段落位置插入。例如：'第一段内容。\\n\\n![插图](/path/to/img.png)\\n\\n第二段内容。'"`
+	Images         []string    `json:"images,omitempty" jsonschema_description:"封面图片路径列表；图文文章中若明确传入 images，将优先作为封面图使用（1 张为单图，3 张及以上为三图）。正文插图请写在 content 的 Markdown 图片标签中"`
+	Tags           []string    `json:"tags,omitempty" jsonschema_description:"标签列表（如活动话题：移动云智能新空间）"`
+	Category       string      `json:"category,omitempty" jsonschema_description:"文章分类（如科技）"`
+	CoverImage     string      `json:"cover_image,omitempty" jsonschema_description:"封面图片路径"`
+	Original       bool        `json:"original,omitempty" jsonschema_description:"是否声明原创"`
+	Fiction        bool        `json:"fiction,omitempty" jsonschema_description:"是否声明作品取材网络、虚构演绎以防范版权/姓名权争议"`
+	PublishTime    interface{} `json:"publish_time,omitempty" jsonschema_description:"定时发布时间（支持 Unix 时间戳或 YYYY-MM-DD HH:mm 格式的字符串）"`
+	SaveAsDraft    bool        `json:"save_as_draft,omitempty" jsonschema_description:"是否仅保存为草稿而不直接发布"`
+	ConfirmPublish bool        `json:"confirm_publish,omitempty" jsonschema_description:"正式发布二次确认；仅在明确发布且服务端已解锁时设为 true"`
+}
+
+// SaveArticleDraftArgs 图文草稿参数，不包含任何正式发布字段。
+type SaveArticleDraftArgs struct {
+	Title      string   `json:"title" jsonschema_description:"文章标题（最多30个头条加权字符）"`
+	Content    string   `json:"content" jsonschema_description:"文章正文；本地插图使用 Markdown 图片标签并提供绝对路径"`
+	Images     []string `json:"images,omitempty" jsonschema_description:"封面图片路径列表；1张为单图，3张及以上为三图"`
+	Tags       []string `json:"tags,omitempty" jsonschema_description:"标签列表"`
+	Category   string   `json:"category,omitempty" jsonschema_description:"文章分类"`
+	CoverImage string   `json:"cover_image,omitempty" jsonschema_description:"显式封面图片路径"`
+	Original   bool     `json:"original,omitempty" jsonschema_description:"是否声明原创"`
+	Fiction    bool     `json:"fiction,omitempty" jsonschema_description:"是否声明作品取材网络、虚构演绎"`
 }
 
 // UpdateArticleArgs 文章修改参数
 type UpdateArticleArgs struct {
-	ArticleID   string      `json:"article_id" jsonschema_description:"要修改的文章或草稿的 ID (即 URL 中的 pgc_id)"`
-	Title       string      `json:"title,omitempty" jsonschema_description:"修改后的文章标题（最多100字，不修改则留空）"`
-	Content     string      `json:"content,omitempty" jsonschema_description:"修改后的文章正文内容。支持：1. 纯文本内容。2. 包含插图的内容：使用 Markdown 格式 of 图片标签 '![图片描述](本地绝对路径)' 插入本地图片。不修改则留空。"`
-	Images      []string    `json:"images,omitempty" jsonschema_description:"封面图片路径列表；修改图文文章时若明确传入 images，将优先作为新封面图使用（1 张为单图，3 张及以上为三图）。正文插图请写在 content 的 Markdown 图片标签中"`
-	CoverImage  string      `json:"cover_image,omitempty" jsonschema_description:"封面图片路径"`
-	Original    bool        `json:"original,omitempty" jsonschema_description:"是否声明原创"`
-	Fiction     bool        `json:"fiction,omitempty" jsonschema_description:"是否声明作品取材网络、虚构演绎以防范版权/姓名权争议"`
-	PublishTime interface{} `json:"publish_time,omitempty" jsonschema_description:"定时发布时间（支持 Unix 时间戳或 YYYY-MM-DD HH:mm 格式的字符串）"`
-	SaveAsDraft bool        `json:"save_as_draft,omitempty" jsonschema_description:"是否仅保存为草稿而不直接发布"`
+	ArticleID      string      `json:"article_id" jsonschema_description:"要修改的文章或草稿的 ID (即 URL 中的 pgc_id)"`
+	Title          string      `json:"title,omitempty" jsonschema_description:"修改后的文章标题（最多100字，不修改则留空）"`
+	Content        string      `json:"content,omitempty" jsonschema_description:"修改后的文章正文内容。支持：1. 纯文本内容。2. 包含插图的内容：使用 Markdown 格式 of 图片标签 '![图片描述](本地绝对路径)' 插入本地图片。不修改则留空。"`
+	Images         []string    `json:"images,omitempty" jsonschema_description:"封面图片路径列表；修改图文文章时若明确传入 images，将优先作为新封面图使用（1 张为单图，3 张及以上为三图）。正文插图请写在 content 的 Markdown 图片标签中"`
+	CoverImage     string      `json:"cover_image,omitempty" jsonschema_description:"封面图片路径"`
+	Original       bool        `json:"original,omitempty" jsonschema_description:"是否声明原创"`
+	Fiction        bool        `json:"fiction,omitempty" jsonschema_description:"是否声明作品取材网络、虚构演绎以防范版权/姓名权争议"`
+	PublishTime    interface{} `json:"publish_time,omitempty" jsonschema_description:"定时发布时间（支持 Unix 时间戳或 YYYY-MM-DD HH:mm 格式的字符串）"`
+	SaveAsDraft    bool        `json:"save_as_draft,omitempty" jsonschema_description:"是否仅保存为草稿而不直接发布"`
+	ConfirmPublish bool        `json:"confirm_publish,omitempty" jsonschema_description:"正式发布二次确认；仅在明确发布且服务端已解锁时设为 true"`
 }
 
 // GetArticleListArgs 文章列表参数
@@ -132,10 +146,11 @@ type GetAccountTrendsArgs struct {
 
 // PublishMicroPostArgs 微头条发布参数
 type PublishMicroPostArgs struct {
-	Content     string      `json:"content" jsonschema_description:"微头条正文内容（最多2000字）"`
-	Images      []string    `json:"images,omitempty" jsonschema_description:"图片路径列表（最多9张，支持本地路径和HTTP URL）"`
-	Topic       string      `json:"topic,omitempty" jsonschema_description:"话题标签（如：AI工具）"`
-	PublishTime interface{} `json:"publish_time,omitempty" jsonschema_description:"定时发布时间（支持 Unix 时间戳或 YYYY-MM-DD HH:mm 格式的字符串）"`
+	Content        string      `json:"content" jsonschema_description:"微头条正文内容（最多2000字）"`
+	Images         []string    `json:"images,omitempty" jsonschema_description:"图片路径列表（最多9张，支持本地路径和HTTP URL）"`
+	Topic          string      `json:"topic,omitempty" jsonschema_description:"话题标签（如：AI工具）"`
+	PublishTime    interface{} `json:"publish_time,omitempty" jsonschema_description:"定时发布时间（支持 Unix 时间戳或 YYYY-MM-DD HH:mm 格式的字符串）"`
+	ConfirmPublish bool        `json:"confirm_publish,omitempty" jsonschema_description:"正式发布二次确认；仅在明确发布且服务端已解锁时设为 true"`
 }
 
 // SaveMicroDraftArgs 微头条草稿保存参数
@@ -213,10 +228,11 @@ func registerMicroTools(server *mcp.Server, appServer *AppServer) {
 	}, withPanicRecovery("publish_micro_post",
 		func(ctx context.Context, req *mcp.CallToolRequest, args PublishMicroPostArgs) (*mcp.CallToolResult, any, error) {
 			argsMap := map[string]interface{}{
-				"content":      args.Content,
-				"images":       args.Images,
-				"topic":        args.Topic,
-				"publish_time": args.PublishTime,
+				"content":         args.Content,
+				"images":          args.Images,
+				"topic":           args.Topic,
+				"publish_time":    args.PublishTime,
+				"confirm_publish": args.ConfirmPublish,
 			}
 			result := appServer.handlePublishMicroPost(ctx, argsMap)
 			return convertToMCPResult(result), nil, nil
@@ -244,6 +260,27 @@ func registerMicroTools(server *mcp.Server, appServer *AppServer) {
 // registerArticleTools 注册文章发布工具
 func registerArticleTools(server *mcp.Server, appServer *AppServer) {
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "save_article_draft",
+		Description: "将图文文章保存到今日头条草稿箱并回查确认；不会发布文章。支持 Markdown 本地插图和独立封面。",
+		Annotations: &mcp.ToolAnnotations{
+			DestructiveHint: boolPtr(true),
+		},
+	}, withPanicRecovery("save_article_draft",
+		func(ctx context.Context, req *mcp.CallToolRequest, args SaveArticleDraftArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleSaveArticleDraft(ctx, map[string]interface{}{
+				"title":       args.Title,
+				"content":     args.Content,
+				"images":      args.Images,
+				"tags":        args.Tags,
+				"category":    args.Category,
+				"cover_image": args.CoverImage,
+				"original":    args.Original,
+				"fiction":     args.Fiction,
+			})
+			return convertToMCPResult(result), nil, nil
+		}))
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "publish_article",
 		Description: "发布今日头条图文文章。\n支持两种发布模式：\n1. 发布纯文本文章：直接在 content 中填写纯文本内容。\n2. 发布带插图文章（插入图片）：在 content 中图片应该插入的位置，以 Markdown 语法 `![图片描述](图片本地绝对路径)` 指定。系统将自动解析标签、将图片文件上传并以图文交替混排方式精准插入到对应位置。\n封面规则：cover_image 优先；其次 images 明确传入时优先作为封面图使用（1 张单图，3 张及以上三图）；只有未传 cover_image/images 时才从正文插图自适应封面。\n注：图片路径必须为本地绝对路径。支持封面模式设置（单图/三图/无封面）、标签/话题设置、分类设置以及声明原创。",
 		Annotations: &mcp.ToolAnnotations{
@@ -252,16 +289,17 @@ func registerArticleTools(server *mcp.Server, appServer *AppServer) {
 	}, withPanicRecovery("publish_article",
 		func(ctx context.Context, req *mcp.CallToolRequest, args PublishArticleArgs) (*mcp.CallToolResult, any, error) {
 			argsMap := map[string]interface{}{
-				"title":         args.Title,
-				"content":       args.Content,
-				"images":        args.Images,
-				"tags":          args.Tags,
-				"category":      args.Category,
-				"cover_image":   args.CoverImage,
-				"original":      args.Original,
-				"fiction":       args.Fiction,
-				"publish_time":  args.PublishTime,
-				"save_as_draft": args.SaveAsDraft,
+				"title":           args.Title,
+				"content":         args.Content,
+				"images":          args.Images,
+				"tags":            args.Tags,
+				"category":        args.Category,
+				"cover_image":     args.CoverImage,
+				"original":        args.Original,
+				"fiction":         args.Fiction,
+				"publish_time":    args.PublishTime,
+				"save_as_draft":   args.SaveAsDraft,
+				"confirm_publish": args.ConfirmPublish,
 			}
 			result := appServer.handlePublishArticle(ctx, argsMap)
 			return convertToMCPResult(result), nil, nil
@@ -276,15 +314,16 @@ func registerArticleTools(server *mcp.Server, appServer *AppServer) {
 	}, withPanicRecovery("update_article",
 		func(ctx context.Context, req *mcp.CallToolRequest, args UpdateArticleArgs) (*mcp.CallToolResult, any, error) {
 			argsMap := map[string]interface{}{
-				"article_id":    args.ArticleID,
-				"title":         args.Title,
-				"content":       args.Content,
-				"images":        args.Images,
-				"cover_image":   args.CoverImage,
-				"original":      args.Original,
-				"fiction":       args.Fiction,
-				"publish_time":  args.PublishTime,
-				"save_as_draft": args.SaveAsDraft,
+				"article_id":      args.ArticleID,
+				"title":           args.Title,
+				"content":         args.Content,
+				"images":          args.Images,
+				"cover_image":     args.CoverImage,
+				"original":        args.Original,
+				"fiction":         args.Fiction,
+				"publish_time":    args.PublishTime,
+				"save_as_draft":   args.SaveAsDraft,
+				"confirm_publish": args.ConfirmPublish,
 			}
 			result := appServer.handleUpdateArticle(ctx, argsMap)
 			return convertToMCPResult(result), nil, nil

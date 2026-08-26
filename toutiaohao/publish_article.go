@@ -48,14 +48,15 @@ func shouldBypassHijack(reqURL, method, contentType string) bool {
 
 // ArticleOptions 文章发布可选参数
 type ArticleOptions struct {
-	Images      []string    `json:"images,omitempty"`
-	Tags        []string    `json:"tags,omitempty"`
-	Category    string      `json:"category,omitempty"`
-	CoverImage  string      `json:"cover_image,omitempty"`
-	Original    bool        `json:"original,omitempty"`
-	Fiction     bool        `json:"fiction,omitempty"`
-	PublishTime interface{} `json:"publish_time,omitempty"`
-	SaveAsDraft bool        `json:"save_as_draft,omitempty"`
+	Images         []string    `json:"images,omitempty"`
+	Tags           []string    `json:"tags,omitempty"`
+	Category       string      `json:"category,omitempty"`
+	CoverImage     string      `json:"cover_image,omitempty"`
+	Original       bool        `json:"original,omitempty"`
+	Fiction        bool        `json:"fiction,omitempty"`
+	PublishTime    interface{} `json:"publish_time,omitempty"`
+	SaveAsDraft    bool        `json:"save_as_draft,omitempty"`
+	ConfirmPublish bool        `json:"confirm_publish,omitempty"`
 }
 
 // ValidateArticle 校验文章参数

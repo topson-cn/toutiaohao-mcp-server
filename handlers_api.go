@@ -115,16 +115,17 @@ func (s *AppServer) apiDeleteCookies(c *gin.Context) {
 // apiPublishArticle 发布文章 API
 func (s *AppServer) apiPublishArticle(c *gin.Context) {
 	var req struct {
-		Title       string      `json:"title" form:"title"`
-		Content     string      `json:"content" form:"content"`
-		Images      []string    `json:"images" form:"images"`
-		Tags        []string    `json:"tags" form:"tags"`
-		Category    string      `json:"category" form:"category"`
-		CoverImage  string      `json:"cover_image" form:"cover_image"`
-		Original    bool        `json:"original" form:"original"`
-		Fiction     bool        `json:"fiction" form:"fiction"`
-		PublishTime interface{} `json:"publish_time" form:"publish_time"`
-		SaveAsDraft bool        `json:"save_as_draft" form:"save_as_draft"`
+		Title          string      `json:"title" form:"title"`
+		Content        string      `json:"content" form:"content"`
+		Images         []string    `json:"images" form:"images"`
+		Tags           []string    `json:"tags" form:"tags"`
+		Category       string      `json:"category" form:"category"`
+		CoverImage     string      `json:"cover_image" form:"cover_image"`
+		Original       bool        `json:"original" form:"original"`
+		Fiction        bool        `json:"fiction" form:"fiction"`
+		PublishTime    interface{} `json:"publish_time" form:"publish_time"`
+		SaveAsDraft    bool        `json:"save_as_draft" form:"save_as_draft"`
+		ConfirmPublish bool        `json:"confirm_publish" form:"confirm_publish"`
 	}
 	if err := c.ShouldBind(&req); err != nil {
 		respondError(c, http.StatusBadRequest, err.Error())
@@ -134,7 +135,7 @@ func (s *AppServer) apiPublishArticle(c *gin.Context) {
 	opts := &toutiaohao.ArticleOptions{
 		Images: req.Images, Tags: req.Tags, Category: req.Category,
 		CoverImage: req.CoverImage, Original: req.Original, Fiction: req.Fiction,
-		PublishTime: req.PublishTime, SaveAsDraft: req.SaveAsDraft,
+		PublishTime: req.PublishTime, SaveAsDraft: req.SaveAsDraft, ConfirmPublish: req.ConfirmPublish,
 	}
 	res, err := s.toutiaoService.PublishArticle(c.Request.Context(), req.Title, req.Content, opts)
 	if err != nil {
@@ -147,17 +148,18 @@ func (s *AppServer) apiPublishArticle(c *gin.Context) {
 // apiPublishMicroPost 发布微头条 API
 func (s *AppServer) apiPublishMicroPost(c *gin.Context) {
 	var req struct {
-		Content     string      `json:"content" form:"content"`
-		Images      []string    `json:"images" form:"images"`
-		Topic       string      `json:"topic" form:"topic"`
-		PublishTime interface{} `json:"publish_time" form:"publish_time"`
+		Content        string      `json:"content" form:"content"`
+		Images         []string    `json:"images" form:"images"`
+		Topic          string      `json:"topic" form:"topic"`
+		PublishTime    interface{} `json:"publish_time" form:"publish_time"`
+		ConfirmPublish bool        `json:"confirm_publish" form:"confirm_publish"`
 	}
 	if err := c.ShouldBind(&req); err != nil {
 		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := s.toutiaoService.PublishMicroPost(c.Request.Context(), req.Content, req.Images, req.Topic, req.PublishTime); err != nil {
+	if err := s.toutiaoService.PublishMicroPost(c.Request.Context(), req.Content, req.Images, req.Topic, req.PublishTime, req.ConfirmPublish); err != nil {
 		respondError(c, mapErrorToStatusCode(err), err.Error())
 		return
 	}
@@ -231,17 +233,18 @@ func (s *AppServer) apiDeleteArticle(c *gin.Context) {
 // apiUpdateArticle 修改文章 API
 func (s *AppServer) apiUpdateArticle(c *gin.Context) {
 	var req struct {
-		ArticleID   string      `json:"article_id" form:"article_id"`
-		Title       string      `json:"title" form:"title"`
-		Content     string      `json:"content" form:"content"`
-		Images      []string    `json:"images" form:"images"`
-		Tags        []string    `json:"tags" form:"tags"`
-		Category    string      `json:"category" form:"category"`
-		CoverImage  string      `json:"cover_image" form:"cover_image"`
-		Original    bool        `json:"original" form:"original"`
-		Fiction     bool        `json:"fiction" form:"fiction"`
-		PublishTime interface{} `json:"publish_time" form:"publish_time"`
-		SaveAsDraft bool        `json:"save_as_draft" form:"save_as_draft"`
+		ArticleID      string      `json:"article_id" form:"article_id"`
+		Title          string      `json:"title" form:"title"`
+		Content        string      `json:"content" form:"content"`
+		Images         []string    `json:"images" form:"images"`
+		Tags           []string    `json:"tags" form:"tags"`
+		Category       string      `json:"category" form:"category"`
+		CoverImage     string      `json:"cover_image" form:"cover_image"`
+		Original       bool        `json:"original" form:"original"`
+		Fiction        bool        `json:"fiction" form:"fiction"`
+		PublishTime    interface{} `json:"publish_time" form:"publish_time"`
+		SaveAsDraft    bool        `json:"save_as_draft" form:"save_as_draft"`
+		ConfirmPublish bool        `json:"confirm_publish" form:"confirm_publish"`
 	}
 	if err := c.ShouldBind(&req); err != nil {
 		respondError(c, http.StatusBadRequest, err.Error())
@@ -251,7 +254,7 @@ func (s *AppServer) apiUpdateArticle(c *gin.Context) {
 	opts := &toutiaohao.ArticleOptions{
 		Images: req.Images, Tags: req.Tags, Category: req.Category,
 		CoverImage: req.CoverImage, Original: req.Original, Fiction: req.Fiction,
-		PublishTime: req.PublishTime, SaveAsDraft: req.SaveAsDraft,
+		PublishTime: req.PublishTime, SaveAsDraft: req.SaveAsDraft, ConfirmPublish: req.ConfirmPublish,
 	}
 	res, err := s.toutiaoService.UpdateArticle(c.Request.Context(), req.ArticleID, req.Title, req.Content, opts)
 	if err != nil {

@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,6 +13,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	log "github.com/sirupsen/logrus"
 )
+
+func serverListenAddr(port string) string {
+	return net.JoinHostPort("127.0.0.1", port)
+}
 
 // AppServer 应用服务器，聚合所有组件
 type AppServer struct {
@@ -41,7 +45,7 @@ func (s *AppServer) Start(port string) error {
 
 	setupRoutes(s.router, s)
 
-	addr := fmt.Sprintf(":%s", port)
+	addr := serverListenAddr(port)
 	s.httpServer = &http.Server{
 		Addr:    addr,
 		Handler: s.router,
@@ -76,7 +80,7 @@ func (s *AppServer) StartBackground(port string) {
 
 	setupRoutes(s.router, s)
 
-	addr := fmt.Sprintf(":%s", port)
+	addr := serverListenAddr(port)
 	s.httpServer = &http.Server{
 		Addr:    addr,
 		Handler: s.router,

@@ -60,6 +60,7 @@ func (s *AppServer) handlePublishMicroPost(ctx context.Context, args map[string]
 	content, _ := args["content"].(string)
 	topic, _ := args["topic"].(string)
 	publishTime := args["publish_time"]
+	confirmPublish, _ := args["confirm_publish"].(bool)
 
 	var images []string
 	if imgs, ok := args["images"].([]string); ok {
@@ -70,7 +71,7 @@ func (s *AppServer) handlePublishMicroPost(ctx context.Context, args map[string]
 		return NewErrorResult(err.Error())
 	}
 
-	if err := s.toutiaoService.PublishMicroPost(ctx, content, images, topic, publishTime); err != nil {
+	if err := s.toutiaoService.PublishMicroPost(ctx, content, images, topic, publishTime, confirmPublish); err != nil {
 		return NewErrorResult(err.Error())
 	}
 
@@ -96,6 +97,45 @@ func (s *AppServer) handleSaveMicroPostDraft(ctx context.Context, args map[strin
 	}
 
 	return NewTextResult(`{"success": true, "message": "Draft saved"}`)
+}
+
+func buildDraftArticleOptions(args map[string]interface{}) *toutiaohao.ArticleOptions {
+	opts := &toutiaohao.ArticleOptions{SaveAsDraft: true}
+	if imgs, ok := args["images"].([]string); ok {
+		opts.Images = imgs
+	}
+	if tags, ok := args["tags"].([]string); ok {
+		opts.Tags = tags
+	}
+	if category, ok := args["category"].(string); ok {
+		opts.Category = category
+	}
+	if cover, ok := args["cover_image"].(string); ok {
+		opts.CoverImage = cover
+	}
+	if original, ok := args["original"].(bool); ok {
+		opts.Original = original
+	}
+	if fiction, ok := args["fiction"].(bool); ok {
+		opts.Fiction = fiction
+	}
+	return opts
+}
+
+// handleSaveArticleDraft 只保存图文草稿，并由服务层回查草稿箱确认。
+func (s *AppServer) handleSaveArticleDraft(ctx context.Context, args map[string]interface{}) *MCPToolResult {
+	title, _ := args["title"].(string)
+	content, _ := args["content"].(string)
+	opts := buildDraftArticleOptions(args)
+	if err := toutiaohao.ValidateArticle(title, content, opts); err != nil {
+		return NewErrorResult(err.Error())
+	}
+	result, err := s.toutiaoService.PublishArticle(ctx, title, content, opts)
+	if err != nil {
+		return NewErrorResult(err.Error())
+	}
+	data, _ := json.Marshal(result)
+	return NewTextResult(string(data))
 }
 
 // handlePublishArticle 处理文章发布
@@ -127,6 +167,9 @@ func (s *AppServer) handlePublishArticle(ctx context.Context, args map[string]in
 	}
 	if saveDraft, ok := args["save_as_draft"].(bool); ok {
 		opts.SaveAsDraft = saveDraft
+	}
+	if confirmPublish, ok := args["confirm_publish"].(bool); ok {
+		opts.ConfirmPublish = confirmPublish
 	}
 
 	if err := toutiaohao.ValidateArticle(title, content, opts); err != nil {
@@ -172,6 +215,9 @@ func (s *AppServer) handleUpdateArticle(ctx context.Context, args map[string]int
 	}
 	if saveDraft, ok := args["save_as_draft"].(bool); ok {
 		opts.SaveAsDraft = saveDraft
+	}
+	if confirmPublish, ok := args["confirm_publish"].(bool); ok {
+		opts.ConfirmPublish = confirmPublish
 	}
 
 	res, err := s.toutiaoService.UpdateArticle(ctx, articleID, title, content, opts)

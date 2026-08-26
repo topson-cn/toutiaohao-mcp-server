@@ -52,3 +52,24 @@ func TestLoginToolSchema(t *testing.T) {
 		t.Fatal("mcpServer is nil")
 	}
 }
+
+func TestBuildDraftArticleOptionsForcesSafeMode(t *testing.T) {
+	opts := buildDraftArticleOptions(map[string]interface{}{
+		"images":          []string{"cover.png"},
+		"cover_image":     "explicit.png",
+		"publish_time":    "2030-01-01 10:00",
+		"confirm_publish": true,
+	})
+	if !opts.SaveAsDraft {
+		t.Fatal("SaveAsDraft = false")
+	}
+	if opts.PublishTime != nil {
+		t.Fatalf("PublishTime = %#v, want nil", opts.PublishTime)
+	}
+	if opts.ConfirmPublish {
+		t.Fatal("ConfirmPublish = true")
+	}
+	if opts.CoverImage != "explicit.png" || len(opts.Images) != 1 || opts.Images[0] != "cover.png" {
+		t.Fatalf("safe content options were not preserved: %+v", opts)
+	}
+}
