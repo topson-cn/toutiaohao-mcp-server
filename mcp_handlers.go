@@ -60,6 +60,7 @@ func (s *AppServer) handlePublishMicroPost(ctx context.Context, args map[string]
 	content, _ := args["content"].(string)
 	topic, _ := args["topic"].(string)
 	publishTime := args["publish_time"]
+	confirmPublish, _ := args["confirm_publish"].(bool)
 
 	var images []string
 	if imgs, ok := args["images"].([]string); ok {
@@ -70,7 +71,7 @@ func (s *AppServer) handlePublishMicroPost(ctx context.Context, args map[string]
 		return NewErrorResult(err.Error())
 	}
 
-	if err := s.toutiaoService.PublishMicroPost(ctx, content, images, topic, publishTime); err != nil {
+	if err := s.toutiaoService.PublishMicroPost(ctx, content, images, topic, publishTime, confirmPublish); err != nil {
 		return NewErrorResult(err.Error())
 	}
 
@@ -128,6 +129,9 @@ func (s *AppServer) handlePublishArticle(ctx context.Context, args map[string]in
 	if saveDraft, ok := args["save_as_draft"].(bool); ok {
 		opts.SaveAsDraft = saveDraft
 	}
+	if confirmPublish, ok := args["confirm_publish"].(bool); ok {
+		opts.ConfirmPublish = confirmPublish
+	}
 
 	if err := toutiaohao.ValidateArticle(title, content, opts); err != nil {
 		return NewErrorResult(err.Error())
@@ -172,6 +176,9 @@ func (s *AppServer) handleUpdateArticle(ctx context.Context, args map[string]int
 	}
 	if saveDraft, ok := args["save_as_draft"].(bool); ok {
 		opts.SaveAsDraft = saveDraft
+	}
+	if confirmPublish, ok := args["confirm_publish"].(bool); ok {
+		opts.ConfirmPublish = confirmPublish
 	}
 
 	res, err := s.toutiaoService.UpdateArticle(ctx, articleID, title, content, opts)

@@ -106,3 +106,35 @@ func TestPublishFailureKeepingDraftError(t *testing.T) {
 		t.Fatalf("error does not explain draft preservation: %v", err)
 	}
 }
+
+func TestRequirePublishUnlock(t *testing.T) {
+	t.Setenv("TOUTIAO_ALLOW_PUBLISH", "")
+	if err := requirePublishUnlock(true); err == nil {
+		t.Fatal("expected environment gate to reject publishing")
+	}
+
+	t.Setenv("TOUTIAO_ALLOW_PUBLISH", "1")
+	if err := requirePublishUnlock(false); err == nil {
+		t.Fatal("expected request confirmation gate to reject publishing")
+	}
+	if err := requirePublishUnlock(true); err != nil {
+		t.Fatalf("requirePublishUnlock() error = %v", err)
+	}
+}
+
+func TestDraftModeDoesNotRequirePublishUnlock(t *testing.T) {
+	t.Setenv("TOUTIAO_ALLOW_PUBLISH", "")
+	if err := enforceArticleWriteMode(&toutiaohao.ArticleOptions{SaveAsDraft: true}); err != nil {
+		t.Fatalf("draft mode was blocked: %v", err)
+	}
+}
+
+func TestArticlePublishRequiresBothUnlocks(t *testing.T) {
+	t.Setenv("TOUTIAO_ALLOW_PUBLISH", "1")
+	if err := enforceArticleWriteMode(&toutiaohao.ArticleOptions{}); err == nil {
+		t.Fatal("publish without confirm_publish should be blocked")
+	}
+	if err := enforceArticleWriteMode(&toutiaohao.ArticleOptions{ConfirmPublish: true}); err != nil {
+		t.Fatalf("fully unlocked publish was blocked: %v", err)
+	}
+}

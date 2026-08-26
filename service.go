@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -39,16 +41,17 @@ var (
 
 func articlePublishDedupeKey(title, content string, opts *toutiaohao.ArticleOptions) string {
 	payload := struct {
-		Title       string      `json:"title"`
-		Content     string      `json:"content"`
-		Images      []string    `json:"images,omitempty"`
-		Tags        []string    `json:"tags,omitempty"`
-		Category    string      `json:"category,omitempty"`
-		CoverImage  string      `json:"cover_image,omitempty"`
-		Original    bool        `json:"original,omitempty"`
-		Fiction     bool        `json:"fiction,omitempty"`
-		PublishTime interface{} `json:"publish_time,omitempty"`
-		SaveAsDraft bool        `json:"save_as_draft,omitempty"`
+		Title          string      `json:"title"`
+		Content        string      `json:"content"`
+		Images         []string    `json:"images,omitempty"`
+		Tags           []string    `json:"tags,omitempty"`
+		Category       string      `json:"category,omitempty"`
+		CoverImage     string      `json:"cover_image,omitempty"`
+		Original       bool        `json:"original,omitempty"`
+		Fiction        bool        `json:"fiction,omitempty"`
+		PublishTime    interface{} `json:"publish_time,omitempty"`
+		SaveAsDraft    bool        `json:"save_as_draft,omitempty"`
+		ConfirmPublish bool        `json:"confirm_publish,omitempty"`
 	}{
 		Title:   strings.TrimSpace(title),
 		Content: strings.TrimSpace(content),
@@ -62,10 +65,27 @@ func articlePublishDedupeKey(title, content string, opts *toutiaohao.ArticleOpti
 		payload.Fiction = opts.Fiction
 		payload.PublishTime = opts.PublishTime
 		payload.SaveAsDraft = opts.SaveAsDraft
+		payload.ConfirmPublish = opts.ConfirmPublish
 	}
 	body, _ := json.Marshal(payload)
 	sum := sha256.Sum256(body)
 	return hex.EncodeToString(sum[:])
+}
+
+var errPublishLocked = errors.New("正式发布已锁定：需要 TOUTIAO_ALLOW_PUBLISH=1 且请求 confirm_publish=true")
+
+func requirePublishUnlock(confirm bool) error {
+	if os.Getenv("TOUTIAO_ALLOW_PUBLISH") != "1" || !confirm {
+		return errPublishLocked
+	}
+	return nil
+}
+
+func enforceArticleWriteMode(opts *toutiaohao.ArticleOptions) error {
+	if opts != nil && opts.SaveAsDraft {
+		return nil
+	}
+	return requirePublishUnlock(opts != nil && opts.ConfirmPublish)
 }
 
 func beginArticlePublishDedupe(key, title string) (func(bool), error) {
@@ -139,7 +159,10 @@ func (s *ToutiaoService) DeleteCookies(ctx context.Context) error {
 }
 
 // PublishMicroPost 发布微头条
-func (s *ToutiaoService) PublishMicroPost(ctx context.Context, content string, images []string, topic string, publishTime interface{}) error {
+func (s *ToutiaoService) PublishMicroPost(ctx context.Context, content string, images []string, topic string, publishTime interface{}, confirmPublish bool) error {
+	if err := requirePublishUnlock(confirmPublish); err != nil {
+		return err
+	}
 	if err := toutiaohao.ValidateMicroPost(content, images, topic); err != nil {
 		return err
 	}
@@ -197,6 +220,9 @@ func publishFailureKeepingDraftError(err error) error {
 
 // PublishArticle 发布文章
 func (s *ToutiaoService) PublishArticle(ctx context.Context, title, content string, opts *toutiaohao.ArticleOptions) (*toutiaohao.PublishResult, error) {
+	if err := enforceArticleWriteMode(opts); err != nil {
+		return nil, err
+	}
 	log.Infof("[Step 1/7] 开始发布文章校验，标题: %s", title)
 	if err := toutiaohao.ValidateArticle(title, content, opts); err != nil {
 		log.Errorf("[Step 1/7] 参数校验失败: %v", err)
@@ -544,6 +570,9 @@ func (s *ToutiaoService) GetAccountTrends(ctx context.Context, days int) (*touti
 
 // UpdateArticle 修改/更新文章
 func (s *ToutiaoService) UpdateArticle(ctx context.Context, articleID string, title, content string, opts *toutiaohao.ArticleOptions) (*toutiaohao.PublishResult, error) {
+	if err := enforceArticleWriteMode(opts); err != nil {
+		return nil, err
+	}
 	if err := toutiaohao.ValidateUpdateArticle(articleID, title, content, opts); err != nil {
 		return nil, err
 	}
