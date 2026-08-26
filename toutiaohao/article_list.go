@@ -116,6 +116,16 @@ func articleStatusMatchesFilter(status interface{}, filter string) bool {
 	}
 }
 
+func filterArticlesByStatus(articles []ArticleItem, filter string) []ArticleItem {
+	filtered := make([]ArticleItem, 0, len(articles))
+	for _, article := range articles {
+		if articleStatusMatchesFilter(article.Status, filter) {
+			filtered = append(filtered, article)
+		}
+	}
+	return filtered
+}
+
 // NewArticleListParams 创建文章列表参数（含默认值）
 func NewArticleListParams(args map[string]interface{}) *ArticleListParams {
 	params := &ArticleListParams{
@@ -867,6 +877,7 @@ func GetArticleList(ctx context.Context, params *ArticleListParams, cookieStore 
 				for _, r := range resp.Data.Articles {
 					rawList = append(rawList, mapRawToArticleItem(r))
 				}
+				rawList = filterArticlesByStatus(rawList, params.Status)
 			}
 		}
 
