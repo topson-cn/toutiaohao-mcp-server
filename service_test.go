@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/example/toutiaohao-mcp-server/toutiaohao"
 )
@@ -136,5 +138,90 @@ func TestArticlePublishRequiresBothUnlocks(t *testing.T) {
 	}
 	if err := enforceArticleWriteMode(&toutiaohao.ArticleOptions{ConfirmPublish: true}); err != nil {
 		t.Fatalf("fully unlocked publish was blocked: %v", err)
+	}
+}
+
+func TestDraftIDsByTitleKeepsOnlyExactDrafts(t *testing.T) {
+	response := &toutiaohao.ArticleListResponse{Articles: []toutiaohao.ArticleItem{
+		{ArticleID: "old", Title: "目标标题", Status: 1},
+		{ArticleID: "published", Title: "目标标题", Status: 3},
+		{ArticleID: "other", Title: "其他标题", Status: 1},
+	}}
+	ids := draftIDsByTitle(response, " 目标标题 ")
+	if len(ids) != 1 {
+		t.Fatalf("ids = %#v", ids)
+	}
+	if _, ok := ids["old"]; !ok {
+		t.Fatalf("missing exact draft id: %#v", ids)
+	}
+}
+
+func TestVerifyNewDraftReturnsNewExactDraft(t *testing.T) {
+	baseline := map[string]struct{}{"old": {}}
+	fetch := func(context.Context, *toutiaohao.ArticleListParams) (*toutiaohao.ArticleListResponse, error) {
+		return &toutiaohao.ArticleListResponse{Articles: []toutiaohao.ArticleItem{
+			{ArticleID: "old", Title: "目标标题", Status: 1},
+			{ArticleID: "new", Title: "目标标题", Status: 1},
+		}}, nil
+	}
+	item, err := verifyNewDraft(context.Background(), "目标标题", baseline, time.Now(), 1, 0, fetch)
+	if err != nil {
+		t.Fatalf("verifyNewDraft() error = %v", err)
+	}
+	if item.ArticleID != "new" {
+		t.Fatalf("ArticleID = %q, want new", item.ArticleID)
+	}
+}
+
+func TestVerifyNewDraftRejectsAmbiguousNewDrafts(t *testing.T) {
+	fetch := func(context.Context, *toutiaohao.ArticleListParams) (*toutiaohao.ArticleListResponse, error) {
+		return &toutiaohao.ArticleListResponse{Articles: []toutiaohao.ArticleItem{
+			{ArticleID: "new-1", Title: "目标标题", Status: 1},
+			{ArticleID: "new-2", Title: "目标标题", Status: 1},
+		}}, nil
+	}
+	_, err := verifyNewDraft(context.Background(), "目标标题", map[string]struct{}{}, time.Now(), 1, 0, fetch)
+	if err == nil || !strings.Contains(err.Error(), "多个新增同名草稿") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestVerifyNewDraftRetriesTemporaryFailure(t *testing.T) {
+	attempts := 0
+	fetch := func(context.Context, *toutiaohao.ArticleListParams) (*toutiaohao.ArticleListResponse, error) {
+		attempts++
+		if attempts == 1 {
+			return nil, errors.New("temporary")
+		}
+		return &toutiaohao.ArticleListResponse{Articles: []toutiaohao.ArticleItem{
+			{ArticleID: "new", Title: "目标标题", Status: "draft"},
+		}}, nil
+	}
+	item, err := verifyNewDraft(context.Background(), "目标标题", map[string]struct{}{}, time.Now(), 2, 0, fetch)
+	if err != nil || item.ArticleID != "new" || attempts != 2 {
+		t.Fatalf("item=%+v err=%v attempts=%d", item, err, attempts)
+	}
+}
+
+func TestVerifyNewDraftExhaustionIsNotSuccess(t *testing.T) {
+	fetch := func(context.Context, *toutiaohao.ArticleListParams) (*toutiaohao.ArticleListResponse, error) {
+		return &toutiaohao.ArticleListResponse{}, nil
+	}
+	_, err := verifyNewDraft(context.Background(), "目标标题", map[string]struct{}{}, time.Now(), 2, 0, fetch)
+	if err == nil || !strings.Contains(err.Error(), "不能确认草稿保存成功") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestVerifyNewDraftUsesCreationTimeWhenBaselineUnavailable(t *testing.T) {
+	startedAt := time.Now().Add(-time.Second)
+	fetch := func(context.Context, *toutiaohao.ArticleListParams) (*toutiaohao.ArticleListResponse, error) {
+		return &toutiaohao.ArticleListResponse{Articles: []toutiaohao.ArticleItem{
+			{ArticleID: "new", Title: "目标标题", Status: 1, CreateTime: time.Now().Unix()},
+		}}, nil
+	}
+	item, err := verifyNewDraft(context.Background(), "目标标题", nil, startedAt, 1, 0, fetch)
+	if err != nil || item.ArticleID != "new" {
+		t.Fatalf("item=%+v err=%v", item, err)
 	}
 }

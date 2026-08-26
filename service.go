@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,8 @@ type articlePublishDedupeRecord struct {
 	InFlight    bool
 	CompletedAt time.Time
 }
+
+type articleListFetcher func(context.Context, *toutiaohao.ArticleListParams) (*toutiaohao.ArticleListResponse, error)
 
 const articlePublishDedupeTTL = 6 * time.Hour
 
@@ -218,6 +221,114 @@ func publishFailureKeepingDraftError(err error) error {
 	)
 }
 
+func draftIDsByTitle(resp *toutiaohao.ArticleListResponse, title string) map[string]struct{} {
+	ids := make(map[string]struct{})
+	if resp == nil {
+		return ids
+	}
+	title = strings.TrimSpace(title)
+	for _, item := range resp.Articles {
+		if strings.TrimSpace(item.Title) != title || !toutiaohao.ArticleStatusIsDraft(item.Status) || item.ArticleID == "" {
+			continue
+		}
+		ids[item.ArticleID] = struct{}{}
+	}
+	return ids
+}
+
+func articleCreatedAt(value interface{}) (time.Time, bool) {
+	var unixValue float64
+	switch v := value.(type) {
+	case float64:
+		unixValue = v
+	case float32:
+		unixValue = float64(v)
+	case int:
+		unixValue = float64(v)
+	case int64:
+		unixValue = float64(v)
+	case json.Number:
+		parsed, err := v.Float64()
+		if err != nil {
+			return time.Time{}, false
+		}
+		unixValue = parsed
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if parsed, err := strconv.ParseFloat(trimmed, 64); err == nil {
+			unixValue = parsed
+		} else {
+			for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05"} {
+				if parsedTime, parseErr := time.ParseInLocation(layout, trimmed, time.Local); parseErr == nil {
+					return parsedTime, true
+				}
+			}
+			return time.Time{}, false
+		}
+	default:
+		return time.Time{}, false
+	}
+
+	seconds := int64(unixValue)
+	if seconds > 1_000_000_000_000 {
+		seconds /= 1000
+	}
+	if seconds <= 0 {
+		return time.Time{}, false
+	}
+	return time.Unix(seconds, 0), true
+}
+
+func verifyNewDraft(ctx context.Context, title string, baseline map[string]struct{}, startedAt time.Time, attempts int, delay time.Duration, fetch articleListFetcher) (*toutiaohao.ArticleItem, error) {
+	if attempts < 1 {
+		attempts = 1
+	}
+	var lastErr error
+	for attempt := 0; attempt < attempts; attempt++ {
+		resp, err := fetch(ctx, &toutiaohao.ArticleListParams{Page: 1, PageSize: 50, Status: "draft"})
+		if err != nil {
+			lastErr = err
+		} else {
+			matches := make([]toutiaohao.ArticleItem, 0, 1)
+			for _, item := range resp.Articles {
+				if strings.TrimSpace(item.Title) != strings.TrimSpace(title) || !toutiaohao.ArticleStatusIsDraft(item.Status) || item.ArticleID == "" {
+					continue
+				}
+				if baseline != nil {
+					if _, existed := baseline[item.ArticleID]; existed {
+						continue
+					}
+				} else {
+					createdAt, ok := articleCreatedAt(item.CreateTime)
+					if !ok || createdAt.Before(startedAt.Add(-2*time.Second)) {
+						continue
+					}
+				}
+				matches = append(matches, item)
+			}
+
+			if len(matches) == 1 {
+				return &matches[0], nil
+			}
+			if len(matches) > 1 {
+				return nil, fmt.Errorf("发现多个新增同名草稿「%s」，无法唯一确认，请人工检查草稿箱", title)
+			}
+			lastErr = fmt.Errorf("尚未找到新增草稿")
+		}
+
+		if attempt+1 < attempts && delay > 0 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return nil, ctx.Err()
+			case <-timer.C:
+			}
+		}
+	}
+	return nil, fmt.Errorf("不能确认草稿保存成功：标题「%s」在草稿箱回查失败：%w", title, lastErr)
+}
+
 // PublishArticle 发布文章
 func (s *ToutiaoService) PublishArticle(ctx context.Context, title, content string, opts *toutiaohao.ArticleOptions) (*toutiaohao.PublishResult, error) {
 	if err := enforceArticleWriteMode(opts); err != nil {
@@ -269,6 +380,17 @@ func (s *ToutiaoService) PublishArticle(ctx context.Context, title, content stri
 		}
 	}
 
+	draftStartedAt := time.Now()
+	var draftBaseline map[string]struct{}
+	if opts != nil && opts.SaveAsDraft {
+		baselineResponse, baselineErr := s.GetArticleList(ctx, &toutiaohao.ArticleListParams{Page: 1, PageSize: 50, Status: "draft"})
+		if baselineErr != nil {
+			log.Warnf("[Step 4/7] 草稿基线读取失败，将使用创建时间进行回查: %v", baselineErr)
+		} else {
+			draftBaseline = draftIDsByTitle(baselineResponse, title)
+		}
+	}
+
 	log.Info("[Step 5/7] 启动浏览器发文实体操作...")
 	b := browser.NewBrowser(false)
 	defer b.Close()
@@ -286,12 +408,17 @@ func (s *ToutiaoService) PublishArticle(ctx context.Context, title, content stri
 	publishSubmitted = true
 
 	if opts != nil && opts.SaveAsDraft {
-		log.Info("[Step 6/7] 文章已按请求保存为草稿，跳过发布状态校验。")
+		log.Info("[Step 6/7] 浏览器草稿流程完成，开始回查草稿箱。")
+		item, verifyErr := verifyNewDraft(ctx, title, draftBaseline, draftStartedAt, 6, 2*time.Second, s.GetArticleList)
+		if verifyErr != nil {
+			return nil, verifyErr
+		}
 		return &toutiaohao.PublishResult{
 			Success:        true,
-			Message:        "文章已保存为草稿",
-			CoverStatus:    "草稿未校验封面状态",
-			OriginalStatus: "草稿未校验原创状态",
+			Message:        "文章已保存为草稿并通过草稿箱验证",
+			ArticleID:      item.ArticleID,
+			CoverStatus:    "草稿已回查",
+			OriginalStatus: "草稿已回查",
 		}, nil
 	}
 
