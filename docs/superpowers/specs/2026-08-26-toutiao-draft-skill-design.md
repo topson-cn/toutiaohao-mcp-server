@@ -136,5 +136,5 @@ Cookie 与运行日志不存放在 Skill 目录或 Git 仓库中。默认状态�
 
 ## 打包来源
 
-- 运行源码提交：`f61cd198dac6f30f31613c9bd931d9850ece23cd`
-- 打包源码树 SHA-256：`3033e780b0c42948e6b94ec1b0aa260cc7b05c53b4b9e987bf2f607819cc4900`
+- 运行源码提交：`53d5fb6`
+- 打包源码树 SHA-256：`4eae42998f37ce20f0b8400a97e771bf9f582590120f0adcee41aca3296d37bb`
